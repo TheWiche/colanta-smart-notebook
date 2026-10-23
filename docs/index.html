@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Colanta Smart · Panel de Supervisión y Auditoría</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2317399B'><path d='M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z'/><path d='M6 6h10'/><path d='M6 10h10'/></svg>">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              DEFAULT: '#17399B',
+              50: '#EEF3FF',
+              100: '#DCE6FD',
+              700: '#17399B',
+              800: '#132E7C',
+              900: '#0E2259',
+            },
+            accent: {
+              DEFAULT: '#C8102E',
+              50: '#FEF1F3',
+              600: '#C8102E',
+              700: '#A50D26',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @media print {
+      .no-print { display: none !important; }
+      body { background: #fff !important; color: #000 !important; }
+      .print-page { break-inside: avoid; border: 1px solid #ccc !important; box-shadow: none !important; margin-bottom: 1rem; }
+    }
+    .check-transition {
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+  </style>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-900 font-sans antialiased selection:bg-brand selection:text-white">
+
+  <!-- Encabezado Corporativo -->
+  <header class="bg-brand text-white shadow-md sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="h-10 w-10 bg-white/10 rounded-xl flex items-center justify-center border border-white/20">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-xl font-extrabold tracking-tight">COLANTA SMART</h1>
+            <span class="bg-emerald-500 text-white text-[11px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Supervisión</span>
+          </div>
+          <p id="headerBatchSubtitle" class="text-xs text-brand-100 font-medium">Panel interactivo de auditoría y transcripción de pedidos</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2 no-print">
+        <button id="btnPasteModal" class="px-3.5 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-white/20">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          <span>Pegar datos</span>
+        </button>
+        <button id="btnPrint" class="px-3.5 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-white/20">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+          <span class="hidden sm:inline">Imprimir</span>
+        </button>
+        <button id="btnResetProgress" class="px-3 py-2 bg-white/10 hover:bg-red-500/80 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-white/20" title="Reiniciar marcas del checklist">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Contenedor Principal -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- Vista de Bienvenida / Sin Datos -->
+    <section id="emptyStateSection" class="hidden max-w-xl mx-auto py-12 text-center">
+      <div class="bg-white p-8 rounded-3xl border border-slate-200 shadow-xl">
+        <div class="h-20 w-20 bg-brand-50 text-brand rounded-2xl mx-auto flex items-center justify-center mb-5">
+          <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+          </svg>
+        </div>
+        <h2 class="text-2xl font-bold text-slate-900 mb-2">No se han recibido pedidos</h2>
+        <p class="text-slate-600 mb-6 text-sm">
+          Abre el enlace generado desde la aplicación <strong>Colanta Smart</strong> del preventista o pega manualmente los datos recibidos.
+        </p>
+        <div class="flex flex-col sm:flex-row gap-3 justify-center">
+          <button id="btnOpenPasteModal" class="px-5 py-3 bg-brand hover:bg-brand-800 text-white font-bold rounded-2xl text-sm transition shadow-md shadow-brand/20">
+            Pegar Enlace o JSON
+          </button>
+          <button id="btnLoadDemo" class="px-5 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-2xl text-sm transition">
+            Ver Ejemplo Demostrativo
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Vista con Datos Activos -->
+    <div id="dataSection" class="space-y-6">
+
+      <!-- Barra de Métricas y KPIs -->
+      <section class="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 no-print">
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div class="flex items-center justify-between text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">
+            <span>Tiendas</span>
+            <svg class="w-4 h-4 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+          </div>
+          <div class="flex items-baseline gap-2">
+            <span id="metricTotalStores" class="text-3xl font-black text-slate-900">0</span>
+            <span class="text-xs text-slate-500 font-medium">registradas</span>
+          </div>
+        </div>
+
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div class="flex items-center justify-between text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">
+            <span>Unidades Total</span>
+            <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+          </div>
+          <div class="flex items-baseline gap-2">
+            <span id="metricTotalUnits" class="text-3xl font-black text-blue-700">0</span>
+            <span class="text-xs text-slate-500 font-medium">productos</span>
+          </div>
+        </div>
+
+        <div class="bg-white p-4 rounded-2xl border border-amber-200 bg-amber-50/40 shadow-sm flex flex-col justify-between">
+          <div class="flex items-center justify-between text-amber-800 text-xs font-bold uppercase tracking-wider mb-1">
+            <span>Pendientes</span>
+            <span class="inline-flex h-2.5 w-2.5 rounded-full bg-amber-500 animate-pulse"></span>
+          </div>
+          <div class="flex items-baseline gap-2">
+            <span id="metricPendingStores" class="text-3xl font-black text-amber-700">0</span>
+            <span class="text-xs text-amber-800 font-semibold">por transcribir</span>
+          </div>
+        </div>
+
+        <div class="bg-white p-4 rounded-2xl border border-emerald-200 bg-emerald-50/40 shadow-sm flex flex-col justify-between">
+          <div class="flex items-center justify-between text-emerald-800 text-xs font-bold uppercase tracking-wider mb-1">
+            <span>Procesados</span>
+            <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          </div>
+          <div class="flex items-baseline gap-2">
+            <span id="metricDoneStores" class="text-3xl font-black text-emerald-700">0</span>
+            <span id="metricProgressPercent" class="text-xs font-bold text-emerald-800">(0%)</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Barra de Progreso Visual -->
+      <section class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-2 no-print">
+        <div class="flex justify-between items-center text-xs font-bold">
+          <span class="text-slate-700">Avance de transcripción al sistema interno</span>
+          <span id="progressSummaryText" class="text-brand font-extrabold">0 de 0 pedidos procesados</span>
+        </div>
+        <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden p-0.5 border border-slate-200">
+          <div id="progressBarFill" class="bg-gradient-to-r from-brand to-emerald-600 h-full rounded-full transition-all duration-300" style="width: 0%"></div>
+        </div>
+      </section>
+
+      <!-- Controles y Filtros Dinámicos -->
+      <section class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 no-print">
+        
+        <!-- Pestañas de Estado -->
+        <div class="flex bg-slate-100 p-1 rounded-xl text-xs font-bold gap-1 self-start sm:self-auto">
+          <button data-filter="pendientes" class="filter-tab px-3 py-1.5 rounded-lg transition bg-white text-slate-900 shadow-sm flex items-center gap-1.5">
+            <span>Pendientes</span>
+            <span id="badgePendingCount" class="bg-amber-100 text-amber-900 px-1.5 py-0.2 rounded-md text-[10px]">0</span>
+          </button>
+          <button data-filter="procesados" class="filter-tab px-3 py-1.5 rounded-lg transition text-slate-600 hover:text-slate-900 flex items-center gap-1.5">
+            <span>Procesados</span>
+            <span id="badgeDoneCount" class="bg-emerald-100 text-emerald-900 px-1.5 py-0.2 rounded-md text-[10px]">0</span>
+          </button>
+          <button data-filter="todos" class="filter-tab px-3 py-1.5 rounded-lg transition text-slate-600 hover:text-slate-900 flex items-center gap-1.5">
+            <span>Todos</span>
+            <span id="badgeAllCount" class="bg-slate-200 text-slate-800 px-1.5 py-0.2 rounded-md text-[10px]">0</span>
+          </button>
+        </div>
+
+        <!-- Filtro por Ruta y Búsqueda -->
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 flex-1 max-w-xl">
+          <div class="relative flex-1">
+            <input type="text" id="searchInput" placeholder="Buscar tienda, código o producto..." class="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:bg-white transition">
+            <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          </div>
+
+          <select id="routeFilterSelect" class="py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand">
+            <option value="todas">Todas las rutas</option>
+          </select>
+
+          <!-- Switch Ocultar Completados -->
+          <label class="flex items-center gap-2 cursor-pointer select-none text-xs font-bold text-slate-700 bg-slate-50 px-3 py-2 rounded-xl border border-slate-200 hover:bg-slate-100 transition">
+            <input type="checkbox" id="toggleHideCompleted" class="rounded text-brand focus:ring-brand h-4 w-4">
+            <span>Ocultar listos</span>
+          </label>
+        </div>
+      </section>
+
+      <!-- Lista de Pedidos por Tienda -->
+      <section id="ordersListContainer" class="space-y-4">
+        <!-- Renderizado dinámico aquí -->
+      </section>
+
+      <!-- Estado vacío cuando los filtros no dan resultados -->
+      <div id="noMatchFiltered" class="hidden bg-white p-10 rounded-2xl border border-slate-200 text-center py-12">
+        <svg class="w-12 h-12 text-slate-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <h3 class="text-lg font-bold text-slate-800">No hay tiendas que coincidan</h3>
+        <p class="text-sm text-slate-500">Prueba ajustando el término de búsqueda o cambiando el filtro de estado/ruta.</p>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Modal para Pegar Enlace / JSON -->
+  <div id="pasteModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-lg rounded-3xl p-6 shadow-2xl border border-slate-200 space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-lg font-bold text-slate-900">Cargar Pedidos de Supervisión</h3>
+        <button id="btnCloseModal" class="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-slate-100">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <p class="text-xs text-slate-600">
+        Pega el enlace completo generado por WhatsApp (o el fragmento con <code>#data=...</code>) o el objeto JSON directo.
+      </p>
+      <textarea id="pasteInput" rows="5" placeholder="https://thewiche.github.io/colanta-smart-notebook/#data=..." class="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-mono focus:ring-2 focus:ring-brand focus:outline-none focus:bg-white resize-none"></textarea>
+      <div class="flex justify-end gap-2.5">
+        <button id="btnCancelPaste" class="px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition">
+          Cancelar
+        </button>
+        <button id="btnApplyPaste" class="px-5 py-2.5 text-xs font-bold text-white bg-brand hover:bg-brand-800 rounded-xl transition shadow-md shadow-brand/20">
+          Cargar Pedidos
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast de Notificaciones -->
+  <div id="toastNotification" class="fixed bottom-6 right-6 max-w-sm bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-xl border border-slate-700 text-xs font-semibold flex items-center gap-2.5 transform translate-y-20 opacity-0 transition-all duration-300 z-50 pointer-events-none">
+    <svg id="toastIcon" class="w-4 h-4 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+    <span id="toastMessage">Acción realizada</span>
+  </div>
+
+  <!-- Lógica de la Aplicación -->
+  <script>
+    // Estado Global de la Web
+    let currentBatch = null;
+    let checklistState = {
+      checkedItems: {},      // itemId -> boolean
+      completedOrders: {},   // storeCodigo -> boolean
+      hideCompleted: false,
+      activeFilter: 'pendientes',
+      routeFilter: 'todas',
+      searchQuery: ''
+    };
+
+    // Funciones Base64 URL Safe
+    function decodeUrlSafeBase64(base64Url) {
+      let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      while (base64.length % 4) base64 += '=';
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      return new TextDecoder().decode(bytes);
+    }
+
+    function showToast(text, isError = false) {
+      const toast = document.getElementById('toastNotification');
+      const msg = document.getElementById('toastMessage');
+      const icon = document.getElementById('toastIcon');
+      msg.textContent = text;
+      icon.className = isError ? 'w-4 h-4 text-red-400 shrink-0' : 'w-4 h-4 text-emerald-400 shrink-0';
+      toast.classList.remove('translate-y-20', 'opacity-0');
+      setTimeout(() => {
+        toast.classList.add('translate-y-20', 'opacity-0');
+      }, 2500);
+    }
+
+    function copyToClipboard(text, feedback = 'Copiado al portapapeles') {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => showToast(feedback));
+      } else {
+        const t = document.createElement('textarea');
+        t.value = text;
+        document.body.appendChild(t);
+        t.select();
+        document.execCommand('copy');
+        document.body.removeChild(t);
+        showToast(feedback);
+      }
+    }
+
+    // Persistencia LocalStorage
+    function getStorageKey(batchId) {
+      return 'colanta_supervision_state_' + (batchId || 'default');
+    }
+
+    function saveChecklistState() {
+      if (!currentBatch) return;
+      localStorage.setItem(getStorageKey(currentBatch.id), JSON.stringify(checklistState));
+      updateMetricsAndUI();
+    }
+
+    function loadChecklistState() {
+      if (!currentBatch) return;
+      const raw = localStorage.getItem(getStorageKey(currentBatch.id));
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          checklistState.checkedItems = parsed.checkedItems || {};
+          checklistState.completedOrders = parsed.completedOrders || {};
+          checklistState.hideCompleted = !!parsed.hideCompleted;
+          document.getElementById('toggleHideCompleted').checked = checklistState.hideCompleted;
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }
+
+    // Parseo de Entrada
+    function parsePayloadString(input) {
+      if (!input) return null;
+      input = input.trim();
+
+      // Caso 1: URL con #data=... o ?data=...
+      const dataMatch = input.match(/[#?]data=([^&]+)/);
+      if (dataMatch) {
+        try {
+          const jsonStr = decodeUrlSafeBase64(dataMatch[1]);
+          return JSON.parse(jsonStr);
+        } catch (e) {
+          console.warn('Error decodificando parámetro data:', e);
+        }
+      }
+
+      // Caso 2: Intento directo de JSON
+      if (input.startsWith('{')) {
+        try {
+          return JSON.parse(input);
+        } catch (e) {
+          console.warn('Error parseando JSON directo:', e);
+        }
+      }
+
+      // Caso 3: String base64url directo
+      try {
+        const jsonStr = decodeUrlSafeBase64(input);
+        return JSON.parse(jsonStr);
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function setBatchData(batch) {
+      if (!batch || !batch.pedidos) return false;
+      currentBatch = batch;
+      localStorage.setItem('colanta_last_batch', JSON.stringify(batch));
+      loadChecklistState();
+
+      // Poblar Rutas en el Selector
+      const routes = new Set();
+      batch.pedidos.forEach(p => {
+        if (p.ruta) routes.add(p.ruta);
+      });
+      const routeSelect = document.getElementById('routeFilterSelect');
+      routeSelect.innerHTML = '<option value="todas">Todas las rutas</option>';
+      Array.from(routes).sort().forEach(r => {
+        const opt = document.createElement('option');
+        opt.value = r;
+        opt.textContent = r;
+        routeSelect.appendChild(opt);
+      });
+
+      // Encabezado
+      const subtitle = document.getElementById('headerBatchSubtitle');
+      subtitle.textContent = `Pedidos del ${batch.fechaTexto || 'día'} · Generados a las ${batch.pedidos[0]?.horaTexto || 'hoy'}`;
+
+      document.getElementById('emptyStateSection').classList.add('hidden');
+      document.getElementById('dataSection').classList.remove('hidden');
+
+      renderOrders();
+      updateMetricsAndUI();
+      return true;
+    }
+
+    // Renderizado de Tiendas y Productos
+    function renderOrders() {
+      const container = document.getElementById('ordersListContainer');
+      container.innerHTML = '';
+      if (!currentBatch || !currentBatch.pedidos) return;
+
+      const filter = checklistState.activeFilter;
+      const hideCompleted = checklistState.hideCompleted;
+      const route = checklistState.routeFilter;
+      const query = checklistState.searchQuery.toLowerCase().trim();
+
+      let visibleCount = 0;
+
+      currentBatch.pedidos.forEach((pedido, pIdx) => {
+        const isStoreCompleted = !!checklistState.completedOrders[pedido.codigo];
+        
+        // Filtros
+        if (hideCompleted && isStoreCompleted) return;
+        if (filter === 'pendientes' && isStoreCompleted) return;
+        if (filter === 'procesados' && !isStoreCompleted) return;
+        if (route !== 'todas' && pedido.ruta !== route) return;
+
+        // Búsqueda
+        if (query) {
+          const matchStore = (pedido.nombre || '').toLowerCase().includes(query);
+          const matchCode = (pedido.codigo || '').toLowerCase().includes(query);
+          const matchAlias = (pedido.alias || '').toLowerCase().includes(query);
+          const matchProduct = pedido.items.some(item => (item.producto || '').toLowerCase().includes(query));
+          if (!matchStore && !matchCode && !matchAlias && !matchProduct) return;
+        }
+
+        visibleCount++;
+
+        // Chequear conteo de ítems
+        const checkedItemsInStore = pedido.items.filter(it => !!checklistState.checkedItems[it.id]).length;
+        const totalItemsInStore = pedido.items.length;
+        const allItemsChecked = totalItemsInStore > 0 && checkedItemsInStore === totalItemsInStore;
+
+        const card = document.createElement('article');
+        card.className = `check-transition rounded-3xl border-2 shadow-sm overflow-hidden print-page ${
+          isStoreCompleted 
+            ? 'bg-emerald-50/70 border-emerald-300' 
+            : 'bg-white border-slate-200 hover:border-slate-300'
+        }`;
+
+        // Banda superior de completado
+        const bannerHtml = isStoreCompleted ? `
+          <div class="bg-emerald-600 text-white px-5 py-2 flex items-center justify-between text-xs font-extrabold uppercase tracking-wider">
+            <span class="flex items-center gap-1.5">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+              PROCESADO EN SISTEMA
+            </span>
+            <span class="text-emerald-100 font-bold">Auditoría lista</span>
+          </div>
+        ` : '';
+
+        // Contenido de la cabecera de la tienda
+        const headerHtml = `
+          <div class="p-4 sm:p-5 border-b ${isStoreCompleted ? 'border-emerald-200' : 'border-slate-100'} flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div class="space-y-1 flex-1">
+              <div class="flex flex-wrap items-center gap-2">
+                <h3 class="text-lg sm:text-xl font-black ${isStoreCompleted ? 'text-emerald-950' : 'text-slate-900'}">${pedido.nombre}</h3>
+                <span class="bg-slate-800 text-white font-mono font-bold text-xs px-2.5 py-0.5 rounded-lg">${pedido.codigo}</span>
+                <span class="bg-brand-50 text-brand font-bold text-xs px-2.5 py-0.5 rounded-lg border border-brand-100">${pedido.ruta}</span>
+                ${pedido.alias ? `<span class="italic text-xs text-slate-500 font-medium">"${pedido.alias}"</span>` : ''}
+              </div>
+              <div class="flex items-center gap-3 text-xs text-slate-500 font-medium">
+                <span>Tomado a las ${pedido.horaTexto}</span>
+                <span>•</span>
+                <span class="font-bold ${isStoreCompleted ? 'text-emerald-700' : 'text-slate-700'}">${checkedItemsInStore} de ${totalItemsInStore} ítems marcados</span>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2 w-full sm:w-auto no-print">
+              <button onclick="copyStoreDetails('${pedido.codigo}')" class="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition border border-slate-200 bg-white" title="Copiar nombre y código de tienda">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+              </button>
+
+              <button onclick="toggleStoreCompleted('${pedido.codigo}')" class="flex-1 sm:flex-none px-4 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition ${
+                isStoreCompleted
+                  ? 'bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border border-emerald-300'
+                  : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20'
+              }">
+                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                <span>${isStoreCompleted ? 'Marcar Pendiente' : 'Completar Pedido'}</span>
+              </button>
+            </div>
+          </div>
+        `;
+
+        // Filas de productos (Checklist)
+        let itemsHtml = '<div class="divide-y divide-slate-100">';
+        pedido.items.forEach(item => {
+          const isItemChecked = !!checklistState.checkedItems[item.id];
+          itemsHtml += `
+            <div onclick="toggleItemChecked('${item.id}', '${pedido.codigo}')" class="check-transition p-3.5 sm:px-5 flex items-center justify-between gap-3 cursor-pointer select-none hover:bg-slate-50 ${
+              isItemChecked ? 'bg-emerald-50/50' : ''
+            }">
+              <div class="flex items-center gap-3.5 flex-1 min-w-0">
+                <div class="h-6 w-6 rounded-lg border-2 flex items-center justify-center shrink-0 transition ${
+                  isItemChecked 
+                    ? 'bg-emerald-600 border-emerald-600 text-white' 
+                    : 'bg-white border-slate-300'
+                }">
+                  ${isItemChecked ? '<svg class="w-4 h-4 stroke-[3]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>' : ''}
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-bold truncate ${isItemChecked ? 'line-through text-slate-400' : 'text-slate-800'}">
+                    ${item.producto}
+                  </p>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-2 shrink-0">
+                <span class="px-3 py-1 rounded-lg text-sm font-black ${
+                  isItemChecked 
+                    ? 'bg-emerald-100 text-emerald-800' 
+                    : 'bg-blue-100 text-brand-900 border border-blue-200'
+                }">
+                  ${item.cantidad} un
+                </span>
+                <button onclick="event.stopPropagation(); copyProductText('${item.cantidad}', '${item.producto}')" class="no-print p-1.5 text-slate-400 hover:text-brand hover:bg-white rounded-lg transition" title="Copiar cantidad y producto">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"/></svg>
+                </button>
+              </div>
+            </div>
+          `;
+        });
+        itemsHtml += '</div>';
+
+        card.innerHTML = bannerHtml + headerHtml + itemsHtml;
+        container.appendChild(card);
+      });
+
+      const noMatchDiv = document.getElementById('noMatchFiltered');
+      if (visibleCount === 0) {
+        noMatchDiv.classList.remove('hidden');
+      } else {
+        noMatchDiv.classList.add('hidden');
+      }
+    }
+
+    // Toggle de Ítem Individual
+    function toggleItemChecked(itemId, storeCodigo) {
+      checklistState.checkedItems[itemId] = !checklistState.checkedItems[itemId];
+
+      // Verificar si todos los ítems de esta tienda quedaron listos
+      const storeOrder = currentBatch.pedidos.find(p => p.codigo === storeCodigo);
+      if (storeOrder) {
+        const allChecked = storeOrder.items.every(it => checklistState.checkedItems[it.id]);
+        if (allChecked) {
+          checklistState.completedOrders[storeCodigo] = true;
+          showToast(`✓ Tienda ${storeOrder.nombre} completada`);
+        } else if (checklistState.completedOrders[storeCodigo]) {
+          // Si desmarcó un ítem de una tienda que estaba lista, la desmarca de completada
+          checklistState.completedOrders[storeCodigo] = false;
+        }
+      }
+
+      saveChecklistState();
+      renderOrders();
+    }
+
+    // Toggle de Tienda Completa
+    function toggleStoreCompleted(storeCodigo) {
+      const isNowCompleted = !checklistState.completedOrders[storeCodigo];
+      checklistState.completedOrders[storeCodigo] = isNowCompleted;
+
+      // Marcar/desmarcar todos sus ítems en cascada
+      const storeOrder = currentBatch.pedidos.find(p => p.codigo === storeCodigo);
+      if (storeOrder) {
+        storeOrder.items.forEach(it => {
+          checklistState.checkedItems[it.id] = isNowCompleted;
+        });
+        showToast(isNowCompleted ? `✓ Tienda ${storeOrder.nombre} marcada como procesada` : `Tienda devuelta a pendiente`);
+      }
+
+      saveChecklistState();
+      renderOrders();
+    }
+
+    // Copiado rápido para transcripción al ERP
+    function copyStoreDetails(storeCodigo) {
+      const storeOrder = currentBatch.pedidos.find(p => p.codigo === storeCodigo);
+      if (!storeOrder) return;
+      const text = `${storeOrder.codigo} - ${storeOrder.nombre}`;
+      copyToClipboard(text, `Tienda copiada: ${text}`);
+    }
+
+    function copyProductText(cantidad, producto) {
+      const text = `${cantidad} - ${producto}`;
+      copyToClipboard(text, `Copiado: ${text}`);
+    }
+
+    // Actualización de Métricas
+    function updateMetricsAndUI() {
+      if (!currentBatch || !currentBatch.pedidos) return;
+
+      const totalStores = currentBatch.pedidos.length;
+      const totalUnits = currentBatch.resumen?.totalUnidades || 0;
+      
+      let doneStores = 0;
+      currentBatch.pedidos.forEach(p => {
+        if (checklistState.completedOrders[p.codigo]) doneStores++;
+      });
+      const pendingStores = totalStores - doneStores;
+      const percent = totalStores > 0 ? Math.round((doneStores / totalStores) * 100) : 0;
+
+      document.getElementById('metricTotalStores').textContent = totalStores;
+      document.getElementById('metricTotalUnits').textContent = totalUnits;
+      document.getElementById('metricPendingStores').textContent = pendingStores;
+      document.getElementById('metricDoneStores').textContent = doneStores;
+      document.getElementById('metricProgressPercent').textContent = `(${percent}%)`;
+
+      document.getElementById('badgePendingCount').textContent = pendingStores;
+      document.getElementById('badgeDoneCount').textContent = doneStores;
+      document.getElementById('badgeAllCount').textContent = totalStores;
+
+      document.getElementById('progressSummaryText').textContent = `${doneStores} de ${totalStores} pedidos procesados (${percent}%)`;
+      document.getElementById('progressBarFill').style.width = `${percent}%`;
+    }
+
+    // Configuración de Eventos UI
+    document.querySelectorAll('.filter-tab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.filter-tab').forEach(b => {
+          b.className = 'filter-tab px-3 py-1.5 rounded-lg transition text-slate-600 hover:text-slate-900 flex items-center gap-1.5';
+        });
+        btn.className = 'filter-tab px-3 py-1.5 rounded-lg transition bg-white text-slate-900 shadow-sm flex items-center gap-1.5';
+        checklistState.activeFilter = btn.dataset.filter;
+        renderOrders();
+      });
+    });
+
+    document.getElementById('searchInput').addEventListener('input', (e) => {
+      checklistState.searchQuery = e.target.value;
+      renderOrders();
+    });
+
+    document.getElementById('routeFilterSelect').addEventListener('change', (e) => {
+      checklistState.routeFilter = e.target.value;
+      renderOrders();
+    });
+
+    document.getElementById('toggleHideCompleted').addEventListener('change', (e) => {
+      checklistState.hideCompleted = e.target.checked;
+      saveChecklistState();
+      renderOrders();
+    });
+
+    document.getElementById('btnPrint').addEventListener('click', () => {
+      window.print();
+    });
+
+    document.getElementById('btnResetProgress').addEventListener('click', () => {
+      if (confirm('¿Deseas reiniciar todas las marcas de checklist de este lote de pedidos?')) {
+        checklistState.checkedItems = {};
+        checklistState.completedOrders = {};
+        saveChecklistState();
+        renderOrders();
+        showToast('Checklist reiniciado');
+      }
+    });
+
+    // Manejador del Modal de Pegado
+    const pasteModal = document.getElementById('pasteModal');
+    const pasteInput = document.getElementById('pasteInput');
+
+    function openModal() {
+      pasteModal.classList.remove('hidden');
+      pasteInput.value = '';
+      pasteInput.focus();
+    }
+
+    function closeModal() {
+      pasteModal.classList.add('hidden');
+    }
+
+    document.getElementById('btnPasteModal').addEventListener('click', openModal);
+    document.getElementById('btnOpenPasteModal').addEventListener('click', openModal);
+    document.getElementById('btnCloseModal').addEventListener('click', closeModal);
+    document.getElementById('btnCancelPaste').addEventListener('click', closeModal);
+
+    document.getElementById('btnApplyPaste').addEventListener('click', () => {
+      const text = pasteInput.value;
+      const parsed = parsePayloadString(text);
+      if (parsed) {
+        setBatchData(parsed);
+        closeModal();
+        showToast('Pedidos cargados correctamente');
+      } else {
+        alert('No se pudo reconocer el formato de los datos pegados. Asegúrate de incluir el enlace con #data=... o el JSON.');
+      }
+    });
+
+    // Datos Demostrativos
+    document.getElementById('btnLoadDemo').addEventListener('click', () => {
+      const now = new Date();
+      const demoBatch = {
+        v: 1,
+        id: 'colanta-demo',
+        creadoEn: now.getTime(),
+        fechaTexto: 'Hoy',
+        resumen: { totalTiendas: 3, totalUnidades: 14 },
+        pedidos: [
+          {
+            codigo: 'RIO-0101',
+            nombre: 'Granero El Paisa',
+            ruta: 'Ruta 1',
+            alias: 'Frente al parque principal',
+            timestamp: now.getTime() - 1000 * 60 * 30,
+            horaTexto: '09:15 AM',
+            items: [
+              { id: 'd1-i1', producto: 'LECHE ENTERA COLANTA BOLSA X 900ML', cantidad: 6 },
+              { id: 'd1-i2', producto: 'YOGUR ENTERO FRESA BOLSA X 900G', cantidad: 2 },
+              { id: 'd1-i3', producto: 'QUESO QUESITO COLANTA X 500G', cantidad: 1 }
+            ]
+          },
+          {
+            codigo: 'RIO-0102',
+            nombre: 'Supermercado La 15',
+            ruta: 'Ruta 1',
+            alias: 'Calle 15 con Cra 8',
+            timestamp: now.getTime() - 1000 * 60 * 20,
+            horaTexto: '09:40 AM',
+            items: [
+              { id: 'd2-i1', producto: 'KUMIS COLANTA GFA X4L', cantidad: 2 },
+              { id: 'd2-i2', producto: 'MANTEQUILLA CON SAL COLANTA X 250G', cantidad: 1 }
+            ]
+          },
+          {
+            codigo: 'SIN CÓDIGO',
+            nombre: 'Tienda Doña Luz (Nueva)',
+            ruta: 'Ruta 2',
+            manual: true,
+            timestamp: now.getTime() - 1000 * 60 * 5,
+            horaTexto: '10:05 AM',
+            items: [
+              { id: 'd3-i1', producto: 'LECHE DESLACTOSADA COLANTA BOLSA X 900ML', cantidad: 2 }
+            ]
+          }
+        ]
+      };
+      setBatchData(demoBatch);
+      showToast('Lote de demostración cargado');
+    });
+
+    // Inicialización al Cargar la Página
+    window.addEventListener('DOMContentLoaded', () => {
+      // 1. Revisar URL hash (#data=...) o query (?data=...)
+      const hash = window.location.hash;
+      const search = window.location.search;
+      let loaded = false;
+
+      if (hash.includes('data=') || search.includes('data=')) {
+        const parsed = parsePayloadString(hash || search);
+        if (parsed) {
+          loaded = setBatchData(parsed);
+        }
+      }
+
+      // 2. Si no viene en la URL, revisar si hay lote previo en localStorage
+      if (!loaded) {
+        const savedRaw = localStorage.getItem('colanta_last_batch');
+        if (savedRaw) {
+          try {
+            const parsed = JSON.parse(savedRaw);
+            loaded = setBatchData(parsed);
+          } catch (e) {
+            console.error(e);
+          }
+        }
+      }
+
+      // 3. Si sigue vacío, mostrar pantalla de bienvenida
+      if (!loaded) {
+        document.getElementById('emptyStateSection').classList.remove('hidden');
+        document.getElementById('dataSection').classList.add('hidden');
+      }
+    });
+
+    // Escuchar cambios de hash dinámicos
+    window.addEventListener('hashchange', () => {
+      const hash = window.location.hash;
+      if (hash.includes('data=')) {
+        const parsed = parsePayloadString(hash);
+        if (parsed) setBatchData(parsed);
+      }
+    });
+  </script>
+</body>
+</html>
+

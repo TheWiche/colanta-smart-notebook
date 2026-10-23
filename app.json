@@ -1,25 +1,38 @@
 {
   "expo": {
-    "name": "Colanta-Smart-Notebook",
+    "name": "Colanta Smart",
     "slug": "Colanta-Smart-Notebook",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/app-icon.png",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true
     },
     "android": {
+      "package": "com.colanta.smartnotebook",
+      "versionCode": 2,
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#F4F5F8"
       },
       "predictiveBackGestureEnabled": false
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "./plugins/with-android-cmake",
+        {
+          "version": "3.31.6"
+        }
+      ]
+    ],
+    "scheme": "colanta-notebook",
+    "experiments": {
+      "typedRoutes": true
     }
   }
 }
