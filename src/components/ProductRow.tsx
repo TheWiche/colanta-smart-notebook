@@ -3,7 +3,7 @@ import { memo } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 
 import { Badge } from '@/components/Badge';
-import { Check, Minus, PackagePlus, Plus } from '@/lib/icons';
+import { Check, Minus, PackagePlus, Plus, RefreshCw } from '@/lib/icons';
 import { toQuantity } from '@/lib/quantity';
 import colors from '@/theme/colors';
 import type { Product, ProductName } from '@/types';
@@ -14,9 +14,11 @@ interface ProductRowProps {
   rowKey: string;
   draft: string;
   enCarrito: number;
+  enCambio?: number;
   onChangeDraft: (producto: ProductName, text: string) => void;
   onStep: (producto: ProductName, delta: number) => void;
   onAdd: (producto: ProductName, cantidad: number) => void;
+  onAddCambio?: (producto: ProductName, cantidad: number) => void;
   onFocusRow: (rowKey: string) => void;
 }
 
@@ -26,9 +28,11 @@ export const ProductRow = memo(function ProductRow({
   rowKey,
   draft,
   enCarrito,
+  enCambio = 0,
   onChangeDraft,
   onStep,
   onAdd,
+  onAddCambio,
   onFocusRow,
 }: ProductRowProps) {
   const { nombre, codigo, nombreCatalogo, alias } = product;
@@ -39,7 +43,11 @@ export const ProductRow = memo(function ProductRow({
   return (
     <View
       className={`rounded-xl border bg-white p-4 shadow-sm ${
-        enCarrito > 0 ? 'border-emerald-300' : 'border-slate-200'
+        enCarrito > 0
+          ? 'border-emerald-300'
+          : enCambio > 0
+            ? 'border-amber-300'
+            : 'border-slate-200'
       }`}
     >
       {/* Los nombres del ERP van en mayúsculas y llegan a 40 caracteres: el nombre usa todo el ancho. */}
@@ -51,12 +59,15 @@ export const ProductRow = memo(function ProductRow({
           {tecnico}
         </Text>
       )}
-      {(codigo !== '' || enCarrito > 0) && (
-        <View className="mt-1 flex-row items-center justify-between gap-3">
-          <Text className="flex-1 text-sm font-medium text-slate-400" numberOfLines={1}>
+      {(codigo !== '' || enCarrito > 0 || enCambio > 0) && (
+        <View className="mt-1 flex-row flex-wrap items-center justify-between gap-2">
+          <Text className="text-sm font-medium text-slate-400" numberOfLines={1}>
             {codigo !== '' ? `Cód. ${codigo}` : ''}
           </Text>
-          {enCarrito > 0 && <Badge tone="success" icon={Check} label={`En pedido: ${enCarrito}`} />}
+          <View className="flex-row items-center gap-1.5">
+            {enCarrito > 0 && <Badge tone="success" icon={Check} label={`En pedido: ${enCarrito}`} />}
+            {enCambio > 0 && <Badge tone="warning" icon={RefreshCw} label={`Cambio: ${enCambio}`} />}
+          </View>
         </View>
       )}
 
@@ -100,6 +111,24 @@ export const ProductRow = memo(function ProductRow({
           </Text>
         </Pressable>
       </View>
+
+      {onAddCambio && (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Registrar cambio de ${nombre}`}
+          accessibilityState={{ disabled: cantidad <= 0 }}
+          disabled={cantidad <= 0}
+          onPress={() => onAddCambio(nombre, cantidad)}
+          className={`mt-2.5 h-11 flex-row items-center justify-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 active:scale-[0.98] active:bg-amber-100 ${
+            cantidad <= 0 ? 'opacity-40' : ''
+          }`}
+        >
+          <RefreshCw size={17} color={colors.amber[700]} strokeWidth={2.4} />
+          <Text className="text-base font-bold text-amber-900" numberOfLines={1}>
+            Registrar cambio ({cantidad})
+          </Text>
+        </Pressable>
+      )}
     </View>
   );
 });

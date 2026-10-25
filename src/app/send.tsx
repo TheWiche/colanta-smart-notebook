@@ -31,7 +31,10 @@ import colors from '@/theme/colors';
 import type { Order, OrdersByStore } from '@/types';
 
 const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`;
-const unidades = (pedido: Order) => pedido.items.reduce((total, item) => total + item.cantidad, 0);
+const unidades = (pedido: Order) =>
+  pedido.items.filter((item) => !item.esCambio).reduce((total, item) => total + item.cantidad, 0);
+const cambios = (pedido: Order) =>
+  pedido.items.filter((item) => item.esCambio).reduce((total, item) => total + item.cantidad, 0);
 const comoMapa = (lista: readonly Order[]): OrdersByStore =>
   Object.fromEntries(lista.map((pedido) => [pedido.tienda.codigo, pedido]));
 
@@ -250,6 +253,7 @@ export default function SendScreen() {
                     <Text className="text-base font-semibold text-slate-700">
                       {plural(pedido.items.length, 'producto', 'productos')} ·{' '}
                       {plural(unidades(pedido), 'unidad', 'unidades')}
+                      {cambios(pedido) > 0 ? ` · ${plural(cambios(pedido), 'cambio', 'cambios')}` : ''}
                     </Text>
                   </View>
                 </Pressable>
@@ -309,7 +313,15 @@ export default function SendScreen() {
                   elegidos.reduce((total, pedido) => total + unidades(pedido), 0),
                   'unidad',
                   'unidades',
-                )}`}
+                )}${
+                  elegidos.reduce((total, pedido) => total + cambios(pedido), 0) > 0
+                    ? ` · ${plural(
+                        elegidos.reduce((total, pedido) => total + cambios(pedido), 0),
+                        'cambio',
+                        'cambios',
+                      )}`
+                    : ''
+                }`}
           </Text>
 
           {/* Botón principal: Enlace web interactivo */}

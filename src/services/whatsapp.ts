@@ -83,18 +83,26 @@ export function buildOrdersText(pedidos: OrdersByStore, ahora: Date = new Date()
   if (conProductos.length === 0) return '';
 
   const items = conProductos.flatMap((pedido) => pedido.items);
-  const unidades = items.reduce((total, item) => total + item.cantidad, 0);
-  const resumen = [
+  const unidadesCobro = items.filter((item) => !item.esCambio).reduce((total, item) => total + item.cantidad, 0);
+  const unidadesCambio = items.filter((item) => item.esCambio).reduce((total, item) => total + item.cantidad, 0);
+
+  const partesResumen = [
     formatDate(ahora),
     pluralize(conProductos.length, 'tienda', 'tiendas'),
-    pluralize(unidades, 'unidad', 'unidades'),
-  ].join(' · ');
+    pluralize(unidadesCobro, 'unidad', 'unidades'),
+  ];
+  if (unidadesCambio > 0) {
+    partesResumen.push(pluralize(unidadesCambio, 'cambio', 'cambios'));
+  }
+  const resumen = partesResumen.join(' · ');
 
   const bloques = conProductos.map((pedido, i) =>
     [
       `*${i + 1}. ${sanitize(pedido.tienda.nombre)}*`,
       storeMeta(pedido.tienda),
-      ...pedido.items.map((item) => `- *${item.cantidad}* ${sanitize(item.producto)}`),
+      ...pedido.items.map(
+        (item) => `- *${item.cantidad}* ${sanitize(item.producto)}${item.esCambio ? ' [CAMBIO]' : ''}`,
+      ),
     ].join('\n'),
   );
 

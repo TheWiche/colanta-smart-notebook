@@ -52,11 +52,11 @@ export interface NotebookState extends PersistedState {
    */
   syncData: (urlTiendas: string, urlProductos: string) => Promise<SyncSummary>;
   /** Suma `cantidad` (por defecto 1) al producto en el pedido de la tienda; crea el pedido si no existe. */
-  addOrderItem: (tienda: Store, producto: ProductName, cantidad?: number) => void;
+  addOrderItem: (tienda: Store, producto: ProductName, cantidad?: number, esCambio?: boolean) => void;
   /** Fija la cantidad exacta del producto (crea el ítem si falta); `cantidad <= 0` lo quita. */
-  setOrderItemQuantity: (tienda: Store, producto: ProductName, cantidad: number) => void;
+  setOrderItemQuantity: (tienda: Store, producto: ProductName, cantidad: number, esCambio?: boolean) => void;
   /** Quita el producto del pedido; si el pedido queda vacío, lo elimina. */
-  removeOrderItem: (codigoTienda: string, producto: ProductName) => void;
+  removeOrderItem: (codigoTienda: string, producto: ProductName, esCambio?: boolean) => void;
   /**
    * Reemplaza de una vez todos los ítems del pedido de la tienda (un solo guardado).
    * Descarta cantidades inválidas o <= 0; si no queda ninguno, elimina el pedido.
@@ -136,27 +136,29 @@ export const useStore = create<NotebookState>()(
         return pendingSync;
       },
 
-      addOrderItem: (tienda, producto, cantidad = 1) => {
+      addOrderItem: (tienda, producto, cantidad = 1, esCambio = false) => {
         if (!producto || !Number.isFinite(cantidad) || cantidad <= 0) return;
         const { pedidos, rutaActiva } = get();
         const actual =
-          pedidos[tienda.codigo]?.items.find((item) => item.producto === producto)?.cantidad ?? 0;
-        const next = withQuantity(pedidos, tienda, producto, actual + cantidad);
+          pedidos[tienda.codigo]?.items.find(
+            (item) => item.producto === producto && Boolean(item.esCambio) === Boolean(esCambio),
+          )?.cantidad ?? 0;
+        const next = withQuantity(pedidos, tienda, producto, actual + cantidad, esCambio);
         set({ pedidos: next, rutaActiva: withAtendida(rutaActiva, tienda, pedidos, next) });
       },
 
-      setOrderItemQuantity: (tienda, producto, cantidad) => {
+      setOrderItemQuantity: (tienda, producto, cantidad, esCambio = false) => {
         if (!producto || !Number.isFinite(cantidad)) return;
         const { pedidos, rutaActiva } = get();
-        const next = withQuantity(pedidos, tienda, producto, cantidad);
+        const next = withQuantity(pedidos, tienda, producto, cantidad, esCambio);
         set({ pedidos: next, rutaActiva: withAtendida(rutaActiva, tienda, pedidos, next) });
       },
 
-      removeOrderItem: (codigoTienda, producto) => {
+      removeOrderItem: (codigoTienda, producto, esCambio = false) => {
         const { pedidos, rutaActiva } = get();
         const pedido = pedidos[codigoTienda];
         if (!pedido) return;
-        const next = withQuantity(pedidos, pedido.tienda, producto, 0);
+        const next = withQuantity(pedidos, pedido.tienda, producto, 0, esCambio);
         set({ pedidos: next, rutaActiva: withAtendida(rutaActiva, pedido.tienda, pedidos, next) });
       },
 
@@ -269,9 +271,19 @@ export const useStore = create<NotebookState>()(
   ),
 );
 
-/** Mismos productos con las mismas cantidades, en cualquier orden. */
+/** Mismos productos con las mismas cantidades y tipo (regular o cambio), en cualquier orden. */
 function sameItems(a: readonly OrderItem[], b: readonly OrderItem[]): boolean {
-  return a.length === b.length && a.every((item) => b.some((o) => o.producto === item.producto && o.cantidad === item.cantidad));
+  return (
+    a.length === b.length &&
+    a.every((item) =>
+      b.some(
+        (o) =>
+          o.producto === item.producto &&
+          o.cantidad === item.cantidad &&
+          Boolean(o.esCambio) === Boolean(item.esCambio),
+      ),
+    )
+  );
 }
 
 /**
@@ -283,15 +295,21 @@ function withQuantity(
   tienda: Store,
   producto: ProductName,
   cantidad: number,
+  esCambio: boolean = false,
 ): OrdersByStore {
   const items = pedidos[tienda.codigo]?.items ?? [];
+  const match = (item: OrderItem) =>
+    item.producto === producto && Boolean(item.esCambio) === Boolean(esCambio);
+
   let nextItems: OrderItem[];
   if (cantidad <= 0) {
-    nextItems = items.filter((item) => item.producto !== producto);
-  } else if (items.some((item) => item.producto === producto)) {
-    nextItems = items.map((item) => (item.producto === producto ? { ...item, cantidad } : item));
+    nextItems = items.filter((item) => !match(item));
+  } else if (items.some(match)) {
+    nextItems = items.map((item) =>
+      match(item) ? { ...item, cantidad, ...(esCambio ? { esCambio: true } : {}) } : item,
+    );
   } else {
-    nextItems = [...items, { producto, cantidad }];
+    nextItems = [...items, { producto, cantidad, ...(esCambio ? { esCambio: true } : {}) }];
   }
 
   const next = { ...pedidos };

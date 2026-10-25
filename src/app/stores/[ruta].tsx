@@ -7,7 +7,7 @@ import { Badge } from '@/components/Badge';
 import { Button } from '@/components/Button';
 import { EmptyState } from '@/components/EmptyState';
 import { SearchInput } from '@/components/SearchInput';
-import { Check, ChevronRight, CircleCheck, CirclePlus, SearchX, Sparkles, Store } from '@/lib/icons';
+import { Check, ChevronRight, CircleCheck, CirclePlus, RefreshCw, SearchX, Sparkles, Store } from '@/lib/icons';
 import { cleanStoreName, displayCodigo } from '@/lib/manualStore';
 import { buildStoreIndex, search } from '@/lib/search';
 import { useStore } from '@/store/useStore';
@@ -102,8 +102,11 @@ export default function StoresScreen() {
           )
         }
         renderItem={({ item: tienda, index }) => {
-          const items = pedidos[tienda.codigo]?.items.length ?? 0;
+          const orderItems = pedidos[tienda.codigo]?.items ?? [];
+          const items = orderItems.length;
           const conPedido = items > 0;
+          const regulares = orderItems.filter((it) => !it.esCambio).length;
+          const cambiosCount = orderItems.filter((it) => it.esCambio).length;
           const enviado = !!pedidos[tienda.codigo]?.enviadoEn;
           const nueva = tienda.manual === true;
           const sinPedido = rutaEnCurso && !conPedido && (rutaActiva?.sinPedido ?? []).includes(tienda.codigo);
@@ -149,7 +152,14 @@ export default function StoresScreen() {
                       <Badge
                         tone="success"
                         icon={CircleCheck}
-                        label={items === 1 ? '1 producto' : `${items} productos`}
+                        label={regulares === 1 ? '1 producto' : `${regulares} productos`}
+                      />
+                    )}
+                    {conPedido && cambiosCount > 0 && (
+                      <Badge
+                        tone="warning"
+                        icon={RefreshCw}
+                        label={cambiosCount === 1 ? '1 cambio' : `${cambiosCount} cambios`}
                       />
                     )}
                     {conPedido && enviado && <Badge tone="brand" icon={Check} label="Enviado" />}

@@ -31,6 +31,7 @@ export interface SupervisionItem {
   id: string;
   producto: string;
   cantidad: number;
+  esCambio?: boolean;
 }
 
 export interface SupervisionOrder {
@@ -53,6 +54,7 @@ export interface SupervisionBatch {
   resumen: {
     totalTiendas: number;
     totalUnidades: number;
+    totalCambios?: number;
   };
   pedidos: SupervisionOrder[];
 }
@@ -71,6 +73,11 @@ export function buildSupervisionBatch(pedidos: OrdersByStore, ahora: Date = new 
   const batchId = `colanta-${ahoraMs}`;
   const totalUnidades = conProductos
     .flatMap((pedido) => pedido.items)
+    .filter((item) => !item.esCambio)
+    .reduce((total, item) => total + item.cantidad, 0);
+  const totalCambios = conProductos
+    .flatMap((pedido) => pedido.items)
+    .filter((item) => item.esCambio)
     .reduce((total, item) => total + item.cantidad, 0);
 
   return {
@@ -81,6 +88,7 @@ export function buildSupervisionBatch(pedidos: OrdersByStore, ahora: Date = new 
     resumen: {
       totalTiendas: conProductos.length,
       totalUnidades,
+      totalCambios,
     },
     pedidos: conProductos.map((pedido, pedidoIdx) => ({
       codigo: displayCodigo(pedido.tienda),
@@ -95,6 +103,7 @@ export function buildSupervisionBatch(pedidos: OrdersByStore, ahora: Date = new 
         id: `p${pedidoIdx}-i${itemIdx}`,
         producto: item.producto,
         cantidad: item.cantidad,
+        esCambio: item.esCambio ? true : undefined,
       })),
     })),
   };
@@ -114,11 +123,15 @@ export function buildSupervisionUrl(batch: SupervisionBatch, baseUrl: string = U
  * Mensaje didáctico para compartir con la supervisora vía WhatsApp o mensajería.
  */
 export function buildSupervisionShareMessage(batch: SupervisionBatch, url: string): string {
-  const resumen = [
+  const partes = [
     batch.fechaTexto,
     pluralize(batch.resumen.totalTiendas, 'tienda', 'tiendas'),
     pluralize(batch.resumen.totalUnidades, 'unidad', 'unidades'),
-  ].join(' · ');
+  ];
+  if (batch.resumen.totalCambios && batch.resumen.totalCambios > 0) {
+    partes.push(pluralize(batch.resumen.totalCambios, 'cambio', 'cambios'));
+  }
+  const resumen = partes.join(' · ');
 
   return [
     '📋 *COLANTA SMART - PANEL DE SUPERVISIÓN*',

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, SectionList, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Badge } from '@/components/Badge';
 import { Button } from '@/components/Button';
 import { CatalogSectionHeader } from '@/components/CatalogSectionHeader';
 import { Dialog } from '@/components/Dialog';
@@ -21,6 +22,7 @@ import {
   Minus,
   PackagePlus,
   Plus,
+  RefreshCw,
   Save,
   SearchX,
   ShoppingCart,
@@ -65,9 +67,9 @@ export default function OrderScreen() {
   const [query, setQuery] = useState('');
   // Detalle del pedido desplegado en el footer. Con un pedido ya guardado arranca abierto: se ve lo que hay y se edita.
   const [detailOpen, setDetailOpen] = useState(saved.length > 0);
-  // Edición de una línea del pedido: cantidad con teclado, y confirmación al quitarla.
-  const [editando, setEditando] = useState<ProductName | null>(null);
-  const [porQuitar, setPorQuitar] = useState<ProductName | null>(null);
+  // Edición de una línea del pedido: cantidad con teclado, tipo (pedido/cambio) y confirmación al quitarla.
+  const [editando, setEditando] = useState<OrderItem | null>(null);
+  const [porQuitar, setPorQuitar] = useState<OrderItem | null>(null);
 
   const hasChanges = JSON.stringify(cart) !== JSON.stringify(saved);
 
@@ -82,7 +84,18 @@ export default function OrderScreen() {
   const sections = useMemo(() => buildSections(busqueda), [busqueda]);
 
   const enCarrito = useMemo(
-    () => Object.fromEntries(cart.map((item) => [item.producto, item.cantidad])) as Record<ProductName, number>,
+    () =>
+      cart
+        .filter((item) => !item.esCambio)
+        .reduce((acc, item) => ({ ...acc, [item.producto]: (acc[item.producto] ?? 0) + item.cantidad }), {} as Record<ProductName, number>),
+    [cart],
+  );
+
+  const enCambio = useMemo(
+    () =>
+      cart
+        .filter((item) => item.esCambio)
+        .reduce((acc, item) => ({ ...acc, [item.producto]: (acc[item.producto] ?? 0) + item.cantidad }), {} as Record<ProductName, number>),
     [cart],
   );
 
@@ -97,26 +110,72 @@ export default function OrderScreen() {
     });
   }, []);
 
-  const addToCart = useCallback((producto: ProductName, cantidad: number) => {
+  const addToCart = useCallback((producto: ProductName, cantidad: number, esCambio = false) => {
     if (cantidad <= 0) return;
-    setCart((prev) =>
-      prev.some((item) => item.producto === producto)
-        ? prev.map((item) =>
-            item.producto === producto ? { ...item, cantidad: item.cantidad + cantidad } : item,
-          )
-        : [...prev, { producto, cantidad }],
-    );
+    setCart((prev) => {
+      const match = (item: OrderItem) =>
+        item.producto === producto && Boolean(item.esCambio) === Boolean(esCambio);
+      if (prev.some(match)) {
+        return prev.map((item) =>
+          match(item) ? { ...item, cantidad: item.cantidad + cantidad } : item,
+        );
+      }
+      return [...prev, { producto, cantidad, ...(esCambio ? { esCambio: true } : {}) }];
+    });
     setDrafts((prev) => ({ ...prev, [producto]: '1' }));
   }, []);
 
-  const setCantidad = (producto: ProductName, cantidad: number) =>
-    setCart((prev) => prev.map((item) => (item.producto === producto ? { ...item, cantidad } : item)));
+  const updateCartItem = (
+    original: OrderItem,
+    newCantidad: number,
+    newEsCambio: boolean = Boolean(original.esCambio),
+  ) => {
+    setCart((prev) => {
+      const isOriginal = (it: OrderItem) =>
+        it.producto === original.producto && Boolean(it.esCambio) === Boolean(original.esCambio);
 
-  const removeFromCart = (producto: ProductName) =>
-    setCart((prev) => prev.filter((item) => item.producto !== producto));
+      if (newCantidad <= 0) {
+        return prev.filter((it) => !isOriginal(it));
+      }
+
+      if (Boolean(original.esCambio) === newEsCambio) {
+        return prev.map((it) => (isOriginal(it) ? { ...it, cantidad: newCantidad } : it));
+      }
+
+      const withoutOriginal = prev.filter((it) => !isOriginal(it));
+      const targetMatch = (it: OrderItem) =>
+        it.producto === original.producto && Boolean(it.esCambio) === newEsCambio;
+
+      if (withoutOriginal.some(targetMatch)) {
+        return withoutOriginal.map((it) =>
+          targetMatch(it) ? { ...it, cantidad: it.cantidad + newCantidad } : it,
+        );
+      }
+
+      return [
+        ...withoutOriginal,
+        { producto: original.producto, cantidad: newCantidad, ...(newEsCambio ? { esCambio: true } : {}) },
+      ];
+    });
+  };
+
+  const removeFromCart = (itemToRemove: OrderItem) => {
+    setCart((prev) =>
+      prev.filter(
+        (it) =>
+          !(it.producto === itemToRemove.producto && Boolean(it.esCambio) === Boolean(itemToRemove.esCambio)),
+      ),
+    );
+  };
 
   /** "−" en una línea: baja uno; si llegaría a 0 pide confirmación antes de quitarla. */
-  const restar = (item: OrderItem) => (item.cantidad <= 1 ? setPorQuitar(item.producto) : setCantidad(item.producto, item.cantidad - 1));
+  const stepItem = (item: OrderItem, delta: number) => {
+    if (item.cantidad + delta <= 0) {
+      setPorQuitar(item);
+    } else {
+      updateCartItem(item, item.cantidad + delta);
+    }
+  };
 
   // Al abrirse el teclado la lista se encoge: la fila que se está editando se lleva a la zona visible.
   const listRef = useRef<SectionList<CatalogSection['data'][number], CatalogSection>>(null);
@@ -165,7 +224,10 @@ export default function OrderScreen() {
     );
   }
 
-  const unidades = cart.reduce((sum, item) => sum + item.cantidad, 0);
+  const regularItems = cart.filter((item) => !item.esCambio);
+  const cambioItems = cart.filter((item) => item.esCambio);
+  const unidadesCobro = regularItems.reduce((sum, item) => sum + item.cantidad, 0);
+  const unidadesCambio = cambioItems.reduce((sum, item) => sum + item.cantidad, 0);
   const showDetail = detailOpen && cart.length > 0;
   const saveLabel = hasChanges
     ? 'Guardar Pedido de Tienda'
@@ -218,7 +280,10 @@ export default function OrderScreen() {
         renderSectionHeader={({ section }) => (
           <CatalogSectionHeader
             section={section}
-            enPedido={section.nombres.reduce((n, nombre) => n + (enCarrito[nombre] ? 1 : 0), 0)}
+            enPedido={section.nombres.reduce(
+              (n, nombre) => n + ((enCarrito[nombre] ?? 0) > 0 || (enCambio[nombre] ?? 0) > 0 ? 1 : 0),
+              0,
+            )}
           />
         )}
         renderItem={({ item }) => (
@@ -228,9 +293,11 @@ export default function OrderScreen() {
               rowKey={item.key}
               draft={drafts[item.product.nombre] ?? '1'}
               enCarrito={enCarrito[item.product.nombre] ?? 0}
+              enCambio={enCambio[item.product.nombre] ?? 0}
               onChangeDraft={setDraft}
               onStep={stepDraft}
-              onAdd={addToCart}
+              onAdd={(prod, cant) => addToCart(prod, cant, false)}
+              onAddCambio={(prod, cant) => addToCart(prod, cant, true)}
               onFocusRow={onFocusRow}
             />
           </View>
@@ -272,9 +339,11 @@ export default function OrderScreen() {
                 <>
                   <Text className="text-lg font-extrabold text-slate-900">
                     {cart.length} {cart.length === 1 ? 'producto' : 'productos'}
+                    {unidadesCambio > 0 ? ` (${regularItems.length} reg. · ${cambioItems.length} camb.)` : ''}
                   </Text>
                   <Text className="text-base text-slate-600">
-                    {unidades} {unidades === 1 ? 'unidad' : 'unidades'} en total
+                    {unidadesCobro} {unidadesCobro === 1 ? 'unidad a cobrar' : 'unidades a cobrar'}
+                    {unidadesCambio > 0 ? ` · ${unidadesCambio} ${unidadesCambio === 1 ? 'cambio' : 'cambios'}` : ''}
                   </Text>
                 </>
               )}
@@ -293,49 +362,69 @@ export default function OrderScreen() {
               style={{ maxHeight: Math.round(height * 0.34) }}
               keyboardShouldPersistTaps="handled"
             >
-              {cart.map((item) => (
-                <View key={item.producto} className="gap-2 border-b border-slate-100 py-2.5">
-                  <Text className="text-base font-semibold text-slate-800" numberOfLines={2}>
-                    {item.producto}
-                  </Text>
-                  <View className="flex-row items-center gap-2">
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={`Restar uno a ${item.producto}`}
-                      onPress={() => restar(item)}
-                      className="h-12 w-12 items-center justify-center rounded-xl border-2 border-slate-300 bg-white active:bg-slate-100"
-                    >
-                      <Minus size={22} color={colors.slate[700]} strokeWidth={3} />
-                    </Pressable>
-                    {/* Tocar el número abre el teclado numérico para escribir la cantidad */}
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={`Cantidad de ${item.producto}: ${item.cantidad}. Tocar para editar`}
-                      onPress={() => setEditando(item.producto)}
-                      className="h-12 min-w-16 items-center justify-center rounded-xl border-2 border-brand-200 bg-brand-50 px-3 active:bg-brand-100"
-                    >
-                      <Text className="text-xl font-extrabold text-brand-700">{item.cantidad}</Text>
-                    </Pressable>
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={`Sumar uno a ${item.producto}`}
-                      onPress={() => setCantidad(item.producto, item.cantidad + 1)}
-                      className="h-12 w-12 items-center justify-center rounded-xl border-2 border-brand-200 bg-brand-50 active:bg-brand-100"
-                    >
-                      <Plus size={22} color={colors.brand.DEFAULT} strokeWidth={3} />
-                    </Pressable>
-                    <View className="flex-1" />
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={`Quitar ${item.producto}`}
-                      onPress={() => setPorQuitar(item.producto)}
-                      className="h-12 w-12 items-center justify-center rounded-xl bg-accent-50 active:bg-accent-100"
-                    >
-                      <Trash size={20} color={colors.accent.DEFAULT} strokeWidth={2.4} />
-                    </Pressable>
+              {cart.map((item) => {
+                const itemKey = `${item.producto}-${item.esCambio ? 'cambio' : 'normal'}`;
+                return (
+                  <View key={itemKey} className="gap-2 border-b border-slate-100 py-2.5">
+                    <View className="flex-row items-center justify-between gap-2">
+                      <Text className="flex-1 text-base font-semibold text-slate-800" numberOfLines={2}>
+                        {item.producto}
+                      </Text>
+                      {item.esCambio ? (
+                        <Badge tone="warning" icon={RefreshCw} label="Cambio (Vencido)" />
+                      ) : (
+                        <Badge tone="neutral" label="Pedido normal" />
+                      )}
+                    </View>
+                    <View className="flex-row items-center gap-2">
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Restar uno a ${item.producto}`}
+                        onPress={() => stepItem(item, -1)}
+                        className="h-12 w-12 items-center justify-center rounded-xl border-2 border-slate-300 bg-white active:bg-slate-100"
+                      >
+                        <Minus size={22} color={colors.slate[700]} strokeWidth={3} />
+                      </Pressable>
+                      {/* Tocar el número abre el teclado numérico para escribir la cantidad y alternar cambio/pedido */}
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Cantidad de ${item.producto}: ${item.cantidad}. Tocar para editar`}
+                        onPress={() => setEditando(item)}
+                        className={`h-12 min-w-16 items-center justify-center rounded-xl border-2 px-3 ${
+                          item.esCambio
+                            ? 'border-amber-300 bg-amber-50 active:bg-amber-100'
+                            : 'border-brand-200 bg-brand-50 active:bg-brand-100'
+                        }`}
+                      >
+                        <Text className={`text-xl font-extrabold ${item.esCambio ? 'text-amber-800' : 'text-brand-700'}`}>
+                          {item.cantidad}
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Sumar uno a ${item.producto}`}
+                        onPress={() => stepItem(item, 1)}
+                        className={`h-12 w-12 items-center justify-center rounded-xl border-2 ${
+                          item.esCambio
+                            ? 'border-amber-300 bg-amber-50 active:bg-amber-100'
+                            : 'border-brand-200 bg-brand-50 active:bg-brand-100'
+                        }`}
+                      >
+                        <Plus size={22} color={item.esCambio ? colors.amber[700] : colors.brand.DEFAULT} strokeWidth={3} />
+                      </Pressable>
+                      <View className="flex-1" />
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Quitar ${item.producto}`}
+                        onPress={() => setPorQuitar(item)}
+                        className="h-12 w-12 items-center justify-center rounded-xl bg-accent-50 active:bg-accent-100"
+                      >
+                        <Trash size={20} color={colors.accent.DEFAULT} strokeWidth={2.4} />
+                      </Pressable>
+                    </View>
                   </View>
-                </View>
-              ))}
+                );
+              })}
             </ScrollView>
           )}
 
@@ -371,11 +460,12 @@ export default function OrderScreen() {
       )}
 
       <QuantityModal
-        key={editando ?? 'cerrado'}
-        producto={editando}
-        cantidad={editando ? (enCarrito[editando] ?? 1) : 1}
-        onConfirm={(cantidad) => {
-          if (editando) setCantidad(editando, cantidad);
+        key={editando ? `${editando.producto}-${editando.esCambio ? 'c' : 'n'}` : 'cerrado'}
+        producto={editando?.producto ?? null}
+        cantidad={editando?.cantidad ?? 1}
+        esCambio={editando?.esCambio ?? false}
+        onConfirm={(cantidad, esCambio) => {
+          if (editando) updateCartItem(editando, cantidad, esCambio);
           setEditando(null);
         }}
         onRemove={() => {
@@ -389,7 +479,11 @@ export default function OrderScreen() {
         tone="danger"
         icon={Trash}
         title="¿Quitar del pedido?"
-        message={porQuitar ?? ''}
+        message={
+          porQuitar
+            ? `${porQuitar.producto}${porQuitar.esCambio ? ' [Cambio por vencimiento]' : ''}`
+            : ''
+        }
         actions={[
           { label: 'Dejarlo', variant: 'secondary', onPress: () => setPorQuitar(null) },
           {

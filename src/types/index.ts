@@ -46,6 +46,8 @@ export type ProductName = string;
 export interface OrderItem {
   producto: ProductName;
   cantidad: number;
+  /** Si es true, el ítem corresponde a un cambio de producto por vencimiento (no altera el total a cobrar). */
+  esCambio?: boolean;
 }
 
 /**

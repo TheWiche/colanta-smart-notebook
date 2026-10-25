@@ -500,6 +500,7 @@
                 <div class="flex-1 min-w-0">
                   <p class="text-sm font-bold truncate ${isItemChecked ? 'line-through text-slate-400' : 'text-slate-800'}">
                     ${item.producto}
+                    ${item.esCambio ? '<span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-black bg-amber-100 text-amber-800 border border-amber-300">CAMBIO (VENCIDO)</span>' : ''}
                   </p>
                 </div>
               </div>
@@ -508,11 +509,13 @@
                 <span class="px-3 py-1 rounded-lg text-sm font-black ${
                   isItemChecked 
                     ? 'bg-emerald-100 text-emerald-800' 
-                    : 'bg-blue-100 text-brand-900 border border-blue-200'
+                    : item.esCambio
+                      ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                      : 'bg-blue-100 text-brand-900 border border-blue-200'
                 }">
-                  ${item.cantidad} un
+                  ${item.cantidad} un ${item.esCambio ? '(Cambio)' : ''}
                 </span>
-                <button onclick="event.stopPropagation(); copyProductText('${item.cantidad}', '${item.producto}')" class="no-print p-1.5 text-slate-400 hover:text-brand hover:bg-white rounded-lg transition" title="Copiar cantidad y producto">
+                <button onclick="event.stopPropagation(); copyProductText('${item.cantidad}', '${item.producto}${item.esCambio ? ' [CAMBIO]' : ''}')" class="no-print p-1.5 text-slate-400 hover:text-brand hover:bg-white rounded-lg transition" title="Copiar cantidad y producto">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"/></svg>
                 </button>
               </div>
@@ -591,6 +594,7 @@
 
       const totalStores = currentBatch.pedidos.length;
       const totalUnits = currentBatch.resumen?.totalUnidades || 0;
+      const totalCambios = currentBatch.resumen?.totalCambios || 0;
       
       let doneStores = 0;
       currentBatch.pedidos.forEach(p => {
@@ -600,7 +604,7 @@
       const percent = totalStores > 0 ? Math.round((doneStores / totalStores) * 100) : 0;
 
       document.getElementById('metricTotalStores').textContent = totalStores;
-      document.getElementById('metricTotalUnits').textContent = totalUnits;
+      document.getElementById('metricTotalUnits').textContent = totalCambios > 0 ? `${totalUnits} (+${totalCambios} camb.)` : totalUnits;
       document.getElementById('metricPendingStores').textContent = pendingStores;
       document.getElementById('metricDoneStores').textContent = doneStores;
       document.getElementById('metricProgressPercent').textContent = `(${percent}%)`;
